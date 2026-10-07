@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Processador de Lote XML NF-e</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: #f4f6f9;
+    color: #222;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 {
+    color: #1a3d7c;
+    margin-bottom: 8px;
+    font-size: 1.8rem;
+  }
+  .sub {
+    color: #555;
+    margin-bottom: 24px;
+    font-size: 0.95rem;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+  .drop-zone {
+    border: 2px dashed #6b8fd4;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #f9fbff;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: #1a3d7c;
+    background: #eef4ff;
+  }
+  .drop-zone p { color: #555; margin-top: 8px; }
+  .drop-zone .icon { font-size: 3rem; }
+  input[type="file"] { display: none; }
+
+  .config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .config-item label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+    color: #333;
+  }
+  .config-item input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccd3e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border 0.2s;
+  }
+  .config-item input:focus {
+    outline: none;
+    border-color: #1a3d7c;
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+  button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: #1a3d7c;
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) { background: #14305f; }
+  .btn-secondary {
+    background: #e6ebf5;
+    color: #1a3d7c;
+  }
+  .btn-secondary:hover:not(:disabled) { background: #d4ddec; }
+  .btn-danger {
+    background: #d32f2f;
+    color: #fff;
+  }
+  .btn-danger:hover:not(:disabled) { background: #b71c1c; }
+
+  .progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #e6ebf5;
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 16px 0;
+    display: none;
+  }
+  .progress-bar.active { display: block; }
+  .progress-bar .fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #1a3d7c, #4a7bd1);
+    transition: width 0.2s;
+  }
+  .status {
+    font-size: 0.9rem;
+    color: #555;
+    margin-top: 8px;
+    min-height: 20px;
+  }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .summary-box {
+    background: #f9fbff;
+    border-left: 4px solid #1a3d7c;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .summary-box .label {
+    font-size: 0.85rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .summary-box .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a3d7c;
+    word-break: break-all;
+  }
+  .summary-box.green { border-left-color: #2e7d32; }
+  .summary-box.green .value { color: #2e7d32; }
+  .summary-box.red { border-left-color: #d32f2f; }
+  .summary-box.red .value { color: #d32f2f; }
+  .summary-box.orange { border-left-color: #ef6c00; }
+  .summary-box.orange .value { color: #ef6c00; }
+
+  .table-wrap {
+    max-height: 500px;
+    overflow: auto;
+    border-radius: 8px;
+    border: 1px solid #e0e5ee;
+    margin-top: 16px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #eef1f6;
+    white-space: nowrap;
+  }
+  th {
+    background: #1a3d7c;
+    color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    font-weight: 600;
+  }
+  tbody tr:hover { background: #f5f8ff; }
+  tbody tr.error { background: #ffebee; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge.ok { background: #e8f5e9; color: #2e7d32; }
+  .badge.err { background: #ffebee; color: #c62828; }
+  .badge.dev { background: #fff3e0; color: #ef6c00; }
+
+  .hidden { display: none !important; }
+
+  .footer-note {
+    font-size: 0.8rem;
+    color: #888;
+    text-align: center;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📦 Processador de Lote XML – NF-e</h1>
+  <p class="sub">Faça upload de um lote de XMLs de NF-e. O sistema calcula valor total, aplica o imposto informado e calcula o desconto para notas de devolução.</p>
+
+  <!-- Upload -->
+  <div class="card">
+    <div class="drop-zone" id="dropZone">
+      <div class="icon">📁</div>
+      <strong>Arraste os arquivos XML aqui ou clique para selecionar</strong>
+      <p>Aceita múltiplos arquivos .xml (NF-e modelo 55)</p>
+      <input type="file" id="fileInput" accept=".xml,application/xml,text/xml" multiple>
+    </div>
+
+    <div class="config-grid">
+      <div class="config-item">
+        <label for="taxRate">Imposto a deduzir (%)</label>
+        <input type="number" id="taxRate" value="0" min="0" max="100" step="0.01">
+      </div>
+      <div class="config-item">
+        <label for="discountRate">Desconto devolução (%)</label>
+        <input type="number" id="discountRate" value="0" min="0" max="100" step="0.01">
+      </div>
+      <div class="config-item">
+        <label for="filterType">Filtrar por tipo</label>
+        <select id="filterType" style="width:100%;padding:10px 12px;border:1px solid #ccd3e0;border-radius:8px;font-size:1rem;">
+          <option value="all">Todas as notas</option>
+          <option value="normal">Somente notas normais</option>
+          <option value="devolucao">Somente devoluções</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary" id="processBtn" disabled>🚀 Processar Lote</button>
+      <button class="btn-secondary" id="clearBtn" disabled>🗑️ Limpar</button>
+      <button class="btn-danger" id="exportBtn" disabled>📥 Exportar CSV</button>
+    </div>
+
+    <div class="progress-bar" id="progressBar">
+      <div class="fill" id="progressFill"></div>
+    </div>
+    <div class="status" id="status">Nenhum arquivo carregado.</div>
+  </div>
+
+  <!-- Resultados -->
+  <div class="card hidden" id="resultsCard">
+    <h2 style="margin-bottom:16px;color:#1a3d7c;">📊 Resumo do Lote</h2>
+    <div class="summary">
+      <div class="summary-box">
+        <div class="label">Total de Notas</div>
+        <div class="value" id="sumTotal">0</div>
+      </div>
+      <div class="summary-box">
+        <div class="label">Valor Total Bruto</div>
+        <div class="value" id="sumBruto">R$ 0,00</div>
+      </div>
+      <div class="summary-box orange">
+        <div class="label">Imposto Deduzido</div>
+        <div class="value" id="sumImposto">R$ 0,00</div>
+      </div>
+      <div class="summary-box green">
+        <div class="label">Valor Líquido</div>
+        <div class="value" id="sumLiquido">R$ 0,00</div>
+      </div>
+      <div class="summary-box red">
+        <div class="label">Desconto Devolução</div>
+        <div class="value" id="sumDesconto">R$ 0,00</div>
+      </div>
+      <div class="summary-box green">
+        <div class="label">Valor Final a Pagar</div>
+        <div class="value" id="sumFinal">R$ 0,00</div>
+      </div>
+    </div>
+
+    <h3 style="margin:24px 0 8px;color:#1a3d7c;font-size:1.1rem;">📋 Detalhamento por Nota</h3>
+    <div class="table-wrap">
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Arquivo</th>
+            <th>Chave / Nº</th>
+            <th>Emitente</th>
+            <th>Tipo</th>
+            <th>Valor Bruto</th>
+            <th>Imposto</th>
+            <th>Líquido</th>
+            <th>Desconto</th>
+            <th>Final</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="footer-note">Processamento 100% local no navegador — nenhum dado é enviado para servidores.</p>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ---------- Elementos ----------
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const processBtn = document.getElementById('processBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const taxRateInput = document.getElementById('taxRate');
+  const discountRateInput = document.getElementById('discountRate');
+  const filterTypeInput = document.getElementById('filterType');
+  const progressBar = document.getElementById('progressBar');
+  const progressFill = document.getElementById('progressFill');
+  const statusEl = document.getElementById('status');
+  const resultsCard = document.getElementById('resultsCard');
+  const resultsBody = document.getElementById('resultsBody');
+
+  const sumTotal = document.getElementById('sumTotal');
+  const sumBruto = document.getElementById('sumBruto');
+  const sumImposto = document.getElementById('sumImposto');
+  const sumLiquido = document.getElementById('sumLiquido');
+  const sumDesconto = document.getElementById('sumDesconto');
+  const sumFinal = document.getElementById('sumFinal');
+
+  // ---------- Estado ----------
+  let files = [];          // File objects
+  let results = [];        // resultados processados
+  let processing = false;
+
+  // ---------- Helpers ----------
+  const fmtBRL = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  function setStatus(msg, isError) {
+    statusEl.textContent = msg;
+    statusEl.style.color = isError ? '#c62828' : '#555';
+  }
+
+  function updateButtons() {
+    const hasFiles = files.length > 0;
+    processBtn.disabled = !hasFiles || processing;
+    clearBtn.disabled = (!hasFiles && results.length === 0) || processing;
+    exportBtn.disabled = results.length === 0 || processing;
+  }
+
+  // ---------- Upload ----------
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    addFiles(e.dataTransfer.files);
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    addFiles(e.target.files);
+    fileInput.value = '';
+  });
+
+  function addFiles(fileList) {
+    const xmlFiles = Array.from(fileList).filter(f =>
+      f.name.toLowerCase().endsWith('.xml') ||
+      f.type === 'application/xml' ||
+      f.type === 'text/xml'
+    );
+    if (!xmlFiles.length) {
+      setStatus('Nenhum arquivo XML válido foi selecionado.', true);
+      return;
+    }
+    // Evita duplicados por nome+tamanho
+    const existing = new Set(files.map(f => f.name + '::' + f.size));
+    let added = 0;
+    xmlFiles.forEach(f => {
+      const key = f.name + '::' + f.size;
+      if (!existing.has(key)) {
+        files.push(f);
+        existing.add(key);
+        added++;
+      }
+    });
+    setStatus(`${files.length} arquivo(s) carregado(s). ${added} novo(s) adicionado(s).`);
+    updateButtons();
+  }
+
+  // ---------- Parser NF-e ----------
+  function parseNFe(xmlText, fileName) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'text/xml');
+
+    // Verifica erros de parse
+    const parseError = doc.querySelector('parsererror');
+    if (parseError) {
+      throw new Error('XML inválido: ' + parseError.textContent.slice(0, 120));
+    }
+
+    // Detecta namespace (NF-e usa namespace padrão)
+    // Busca por tag infNFe (funciona com ou sem namespace via getElementsByTagNameNS ou localName)
+    let infNFe = null;
+    const all = doc.getElementsByTagName('*');
+    for (let i = 0; i < all.length; i++) {
+      if (all[i].localName === 'infNFe') { infNFe = all[i]; break; }
+    }
+    if (!infNFe) {
+      throw new Error('Estrutura NF-e não encontrada (tag infNFe ausente).');
+    }
+
+    // Chave de acesso
+    const chave = infNFe.getAttribute('Id')?.replace('NFe', '') || '';
+
+    // Helper para pegar texto de tag filha por localName
+    const getTag = (parent, tag) => {
+      if (!parent) return null;
+      const els = parent.getElementsByTagName('*');
+      for (let i = 0; i < els.length; i++) {
+        if (els[i].localName === tag) return els[i].textContent.trim();
+      }
+      return null;
+    };
+
+    // Busca direta sem varrer todos (mais rápido)
+    const findByLocal = (parent, tag) => {
+      const list = parent.getElementsByTagNameNS('*', tag);
+      return list.length ? list[0] : null;
+    };
+
+    const ide = findByLocal(infNFe, 'ide');
+    const emit = findByLocal(infNFe, 'emit');
+    const total = findByLocal(infNFe, 'total');
+    const ICMSTot = findByLocal(total, 'ICMSTot');
+
+    // Número da nota
+    const nNF = ide ? (findByLocal(ide, 'nNF')?.textContent || '') : '';
+
+    // Emitente
+    const xNome = emit ? (findByLocal(emit, 'xNome')?.textContent || '') : '';
+
+    // Valor total da NF
+    let vNF = 0;
+    if (ICMSTot) {
+      const vNFEl = findByLocal(ICMSTot, 'vNF');
+      if (vNFEl) vNF = parseFloat(vNFEl.textContent) || 0;
+    }
+    // Fallback: procura vNF em qualquer lugar
+    if (!vNF) {
+      const vNFFallback = findByLocal(infNFe, 'vNF');
+      if (vNFFallback) vNF = parseFloat(vNFFallback.textContent) || 0;
+    }
+
+    // Detecta tipo de nota (devolução)
+    // finNFe: 1=Normal, 2=Complementar, 3=Ajuste, 4=Devolução
+    let finNFe = '1';
+    if (ide) {
+      const finEl = findByLocal(ide, 'finNFe');
+      if (finEl) finNFe = finEl.textContent.trim();
+    }
+
+    // Também detecta por natureza da operação (contém "devolu")
+    let natOp = '';
+    if (ide) {
+      const natEl = findByLocal(ide, 'natOp');
+      if (natEl) natOp = natEl.textContent.trim();
+    }
+    const isDevolucao = finNFe === '4' || /devolu/i.test(natOp);
+
+    return {
+      fileName,
+      chave,
+      nNF,
+      emitente: xNome,
+      vNF,
+      finNFe,
+      natOp,
+      isDevolucao,
+      error: null
+    };
+  }
+
+  // ---------- Processamento ----------
+  async function processFiles() {
+    if (!files.length) return;
+    processing = true;
+    updateButtons();
+
+    const taxRate = parseFloat(taxRateInput.value) || 0;
+    const discountRate = parseFloat(discountRateInput.value) || 0;
+    const filterType = filterTypeInput.value;
+
+    results = [];
+    const total = files.length;
+
+    progressBar.classList.add('active');
+    progressFill.style.width = '0%';
+    setStatus(`Processando 0/${total}...`);
+
+    const BATCH_SIZE = 50; // processa em lotes para não travar UI
+    let processed = 0;
+
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(async (file) => {
+        try {
+          const text = await file.text();
+          const parsed = parseNFe(text, file.name);
+          return parsed;
+        } catch (err) {
+          return {
+            fileName: file.name,
+            chave: '',
+            nNF: '',
+            emitente: '',
+            vNF: 0,
+            finNFe: '',
+            natOp: '',
+            isDevolucao: false,
+            error: err.message
+          };
+        }
+      }));
+
+      // Aplica cálculos
+      batchResults.forEach(r => {
+        if (r.error) {
+          results.push({
+            ...r,
+            bruto: 0, imposto: 0, liquido: 0, desconto: 0, final: 0,
+            aplicado: false
+          });
+          return;
+        }
+        // Filtro
+        let aplicado = true;
+        if (filterType === 'normal' && r.isDevolucao) aplicado = false;
+        if (filterType === 'devolucao' && !r.isDevolucao) aplicado = false;
+
+        const bruto = r.vNF;
+        const imposto = aplicado ? bruto * (taxRate / 100) : 0;
+        const liquido = bruto - imposto;
+        const desconto = (aplicado && r.isDevolucao) ? liquido * (discountRate / 100) : 0;
+        const final = liquido - desconto;
+
+        results.push({
+          ...r,
+          bruto,
+          imposto,
+          liquido,
+          desconto,
+          final,
+          aplicado
+        });
+      });
+
+      processed += batch.length;
+      const pct = (processed / total) * 100;
+      progressFill.style.width = pct + '%';
+      setStatus(`Processando ${processed}/${total}...`);
+      // Deixa UI respirar
+      await new Promise(r => setTimeout(r, 0));
+    }
+
+    progressBar.classList.remove('active');
+    renderResults(taxRate, discountRate, filterType);
+    setStatus(`✅ Processamento concluído: ${total} arquivo(s).`);
+    processing = false;
+    updateButtons();
+  }
+
+  // ---------- Render ----------
+  function renderResults(taxRate, discountRate, filterType) {
+    resultsCard.classList.remove('hidden');
+
+    const tbody = resultsBody;
+    tbody.innerHTML = '';
+
+    let totBruto = 0, totImposto = 0, totLiquido = 0, totDesconto = 0, totFinal = 0;
+    let countAplicado = 0;
+
+    const frag = document.createDocumentFragment();
+
+    results.forEach((r, idx) => {
+      const tr = document.createElement('tr');
+      if (r.error) tr.classList.add('error');
+
+      if (!r.error && r.aplicado) {
+        totBruto += r.bruto;
+        totImposto += r.imposto;
+        totLiquido += r.liquido;
+        totDesconto += r.desconto;
+        totFinal += r.final;
+        countAplicado++;
+      }
+
+      const tipoBadge = r.error
+        ? '<span class="badge err">Erro</span>'
+        : (r.isDevolucao
+            ? '<span class="badge dev">Devolução</span>'
+            : '<span class="badge ok">Normal</span>');
+
+      tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td title="${escapeHtml(r.fileName)}">${escapeHtml(truncate(r.fileName, 30))}</td>
+        <td>${escapeHtml(r.chave ? r.chave.slice(-12) : (r.nNF || '-'))}</td>
+        <td title="${escapeHtml(r.emitente)}">${escapeHtml(truncate(r.emitente, 25))}</td>
+        <td>${tipoBadge}</td>
+        <td>${r.error ? '-' : fmtBRL(r.bruto)}</td>
+        <td>${r.error || !r.aplicado ? '-' : fmtBRL(r.imposto)}</td>
+        <td>${r.error || !r.aplicado ? '-' : fmtBRL(r.liquido)}</td>
+        <td>${r.error || !r.aplicado ? '-' : fmtBRL(r.desconto)}</td>
+        <td>${r.error ? '-' : (r.aplicado ? fmtBRL(r.final) : '<em>fora do filtro</em>')}</td>
+      `;
+      frag.appendChild(tr);
+    });
+
+    tbody.appendChild(frag);
+
+    sumTotal.textContent = countAplicado + ' / ' + results.length;
+    sumBruto.textContent = fmtBRL(totBruto);
+    sumImposto.textContent = fmtBRL(totImposto);
+    sumLiquido.textContent = fmtBRL(totLiquido);
+    sumDesconto.textContent = fmtBRL(totDesconto);
+    sumFinal.textContent = fmtBRL(totFinal);
+  }
+
+  function truncate(str, n) {
+    if (!str) return '';
+    return str.length > n ? str.slice(0, n - 1) + '…' : str;
+  }
+  function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  // ---------- Limpar ----------
+  function clearAll() {
+    files = [];
+    results = [];
+    resultsBody.innerHTML = '';
+    resultsCard.classList.add('hidden');
+    setStatus('Nenhum arquivo carregado.');
+    updateButtons();
+  }
+
+  // ---------- Exportar CSV ----------
+  function exportCSV() {
+    if (!results.length) return;
+    const taxRate = parseFloat(taxRateInput.value) || 0;
+    const discountRate = parseFloat(discountRateInput.value) || 0;
+
+    const headers = [
+      'Arquivo','Chave','Numero','Emitente','Tipo','Valor Bruto',
+      'Imposto ('+taxRate+'%)','Liquido','Desconto ('+discountRate+'%)','Final','Status'
+    ];
+    const rows = results.map(r => [
+      r.fileName,
+      r.chave,
+      r.nNF,
+      r.emitente,
+      r.error ? 'ERRO' : (r.isDevolucao ? 'Devolucao' : 'Normal'),
+      r.error ? '' : fmtNum(r.bruto),
+      r.error || !r.aplicado ? '' : fmtNum(r.imposto),
+      r.error || !r.aplicado ? '' : fmtNum(r.liquido),
+      r.error || !r.aplicado ? '' : fmtNum(r.desconto),
+      r.error ? '' : (r.aplicado ? fmtNum(r.final) : 'FORA DO FILTRO'),
+      r.error ? r.error : 'OK'
+    ]);
+
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(';'))
+      .join('\r\n');
+
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lote_nfe_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- Eventos ----------
+  processBtn.addEventListener('click', processFiles);
+  clearBtn.addEventListener('click', clearAll);
+  exportBtn.addEventListener('click', exportCSV);
+
+  // Recalcula ao mudar configurações (se já houver resultados)
+  [taxRateInput, discountRateInput, filterTypeInput].forEach(el => {
+    el.addEventListener('change', () => {
+      if (results.length && !processing) {
+        const taxRate = parseFloat(taxRateInput.value) || 0;
+        const discountRate = parseFloat(discountRateInput.value) || 0;
+        const filterType = filterTypeInput.value;
+        // Reaplica cálculos
+        results = results.map(r => {
+          if (r.error) return r;
+          let aplicado = true;
+          if (filterType === 'normal' && r.isDevolucao) aplicado = false;
+          if (filterType === 'devolucao' && !r.isDevolucao) aplicado = false;
+
+          const bruto = r.vNF;
+          const imposto = aplicado ? bruto * (taxRate / 100) : 0;
+          const liquido = bruto - imposto;
+          const desconto = (aplicado && r.isDevolucao) ? liquido * (discountRate / 100) : 0;
+          const final = liquido - desconto;
+          return { ...r, bruto, imposto, liquido, desconto, final, aplicado };
+        });
+        renderResults(taxRate, discountRate, filterType);
+      }
+    });
+  });
+
+  updateButtons();
+})();
+</script>
+</body>
+</html>
